@@ -28,23 +28,28 @@ class VCTK(object):
             # return result
             return lab, mfcc
 
+        print('Loading corpus')
         # load corpus
         labels, wave_files = self._load_corpus(data_path)
+        labels = np.array(labels)
 
+        print('Converting to tensor')
         # to constant tensor
         label = tf.convert_to_tensor(labels)
         wave_file = tf.convert_to_tensor(wave_files)
 
+        print('Creating queue')
         # create queue from constant tensor
         label, wave_file = tf.train.slice_input_producer([label, wave_file], shuffle=True)
 
+        print('Decoding wave file to mfcc')
         # decode wave file
         label, mfcc = _load_mfcc(source=[label, wave_file], dtypes=[tf.sg_intx, tf.sg_floatx],
                                  capacity=128, num_threads=32)
 
         # create batch queue with dynamic pad
         batch_queue = tf.train.batch([label, mfcc], batch_size,
-                                     shapes=[(None,), (20, None)],
+                                     shapes=[(None,), (200, None)],
                                      num_threads=32, capacity=batch_size*48,
                                      dynamic_pad=True)
 
@@ -79,8 +84,10 @@ class VCTK(object):
         speaker_ids = []
         for i, w in zip(file_ids, wav_files):
             if os.stat(w).st_size > 240000:  # at least 5 seconds
-                speaker_id = (i.split('_')[0]).replace('p', '')
-                speaker_ids.append(speaker_id)
+                speaker_id = int((i.split('_')[0]).replace('p', ''))
+                one_hot_speaker = np.zeros(200)
+                one_hot_speaker[speaker_id-224] = 1
+                speaker_ids.append(one_hot_speaker)
                 file_id.append(i)
                 wav_file.append(w)
 
